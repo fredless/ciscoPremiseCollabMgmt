@@ -37,7 +37,7 @@ class server:
         
         # establish XML namespaces used later to construct and parse requests
         self.ns0 = "http://schemas.xmlsoap.org/soap/envelope/"
-        self.ns1 = "http://www.cisco.com/AXL/API/{0}".format(axlversion)
+        self.ns1 = f"http://www.cisco.com/AXL/API/{axlversion}"
         
         # suppress certificate advice
         if not cert_verify:
@@ -50,19 +50,19 @@ class server:
         
         # mandatory SOAP envelope and namespaces
         envelope = "<?xml version='1.0' encoding='utf8'?>" +\
-                   "<ns0:Envelope xmlns:ns0=\"{0}\" xmlns:ns1=\"{1}\">".format(self.ns0,self.ns1) 
+                   f"<ns0:Envelope xmlns:ns0=\"{self.ns0}\" xmlns:ns1=\"{self.ns1}\">" 
         
         # omit optional SOAP header, placeholder
         ### envelope += '<ns0:Header/>'
         
         # construct body, this is where request's namespace is provided
-        envelope += "<ns0:Body><ns1:{0} sequence=\"\">".format(axlnamespace)
+        envelope += f"<ns0:Body><ns1:{axlnamespace} sequence=\"\">"
 
         # adding parameters from dict converting to xml
         envelope += dicttoxml.dicttoxml(axlparams, attr_type=False, root=False).decode('utf-8')
 
         # close tags
-        envelope += "</ns1:{0}></ns0:Body></ns0:Envelope>".format(axlnamespace)
+        envelope += f"</ns1:{axlnamespace}></ns0:Body></ns0:Envelope>"
 
         return envelope
 
@@ -73,7 +73,7 @@ class server:
         and return answer in dict.
         """
 
-        url = "https://{0}:8443/axl/".format(self.nodeip)
+        url = f"https://{self.nodeip}:8443/axl/"
 
         # build the request body
         soapenvelope=self.axl_cucm_envelope(axlnamespace,axlparams)
@@ -90,17 +90,17 @@ class server:
             elif request.status_code >= 400:
                 request.raise_for_status()
         except:
-            return {'fault': "Error {0}".format(sys.exc_info()[:2])}
+            return {'fault': f"Error {sys.exc_info()[:2]}"}
         
         # parse response into dict and output parts
         request_dict = xmltodict.parse(request.text, process_namespaces=True)
-        body_dict = request_dict['{0}:Envelope'.format(self.ns0)]['{0}:Body'.format(self.ns0)]
+        body_dict = request_dict[f'{self.ns0}:Envelope'][f'{self.ns0}:Body']
 
         # look for errors
-        if '{0}:{1}Response'.format(self.ns1, axlnamespace) in body_dict:
-            return body_dict['{0}:{1}Response'.format(self.ns1, axlnamespace)]
-        elif '{0}:Fault'.format(self.ns0) in body_dict:
-            return {'fault': body_dict['{0}:Fault'.format(self.ns0)]}
+        if f'{self.ns1}:{axlnamespace}Response' in body_dict:
+            return body_dict[f'{self.ns1}:{axlnamespace}Response']
+        elif f'{self.ns0}:Fault' in body_dict:
+            return {'fault': body_dict[f'{self.ns0}:Fault']}
         else:
             return body_dict
     
