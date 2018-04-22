@@ -3,10 +3,9 @@ Python modules to simplify use of provisioning SOAP API's for the Cisco on-premi
 
 Arranging in packages and submodules by product and API:
 ```
-└───cucm (Cisco Communications Manager)
-│       axl.py (Administrative XML used for wide-ranging provisioning tasks)
-│       risport.py (serviceability queries for real-time state)
-|       controlcenter.py (control services running on a node)    
+└───cucm.py: Cisco Communications Manager classes:
+│       axl: Administrative XML used for wide-ranging provisioning tasks
+│       controlcenter: control services running on a node    
 └───unity
 |       TBD
 └───imp
