@@ -248,9 +248,25 @@ class controlcenter:
 
         body_dict = self.clean_response(body_dict)
 
-        # look for errors (tod: this doesn't really validate when call is succcesful but services fail to activate)
+        # look for errors 
         if body_dict['ReasonCode'] != "-1":
             return {'fault': f"Error: '{body_dict['ReasonString']}' - \
             check that service list is valid for node {self.nodename} (Code: {body_dict['ReasonCode']})"}
-        else:
-            return body_dict
+
+        if action == "Deploy":
+            failed_list = ''
+            if isinstance(body_dict['ServiceInfoList']['item'], list):
+                for service in body_dict['ServiceInfoList']['item']:
+                    if (service[f'{self.ns1}:ReasonCode']) == "-1068":
+                        print (str(service[f'{self.ns1}:ServiceName']))
+                        failed_list += str(service[f'{self.ns1}:ServiceName'])
+            else:
+                if body_dict['ServiceInfoList']['item']['ReasonCode'] == "-1068":
+                    failed_list = f"'service[f'{self.ns1}:ServiceName']' "
+            if failed_list != None:
+                return dict(
+                    {'fault': f"Error: the following services failed to activate: {failed_list}"},
+                    **body_dict
+                )
+            
+        return body_dict
