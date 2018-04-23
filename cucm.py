@@ -109,7 +109,7 @@ class axl:
             return body_dict
 
     def sqlquery(self, sql):
-        """ Shortcut for executing ready-only AXL SQL requests """
+        """ Shortcut for executing read-only AXL SQL requests """
 
         if not sql:
             return {'fault': "missing SQL query"}  
