@@ -89,7 +89,7 @@ class axl:
             # catch for various HTTP errors
             if request.status_code == 599:
                 # custom error when API doesn't support schema version provided
-                return {'fault': "Error (<class 'requests.exceptions.HTTPError'>, "
+                return {'xmldata': soapenvelope, 'fault': "Error (<class 'requests.exceptions.HTTPError'>, "
                 "HTTPError('599 Server Error: issue with AXL subsystem or version specified',))"}
             elif request.status_code >= 400:
                 request.raise_for_status()
