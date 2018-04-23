@@ -116,7 +116,11 @@ class axl:
         return (self.request('executeSQLQuery', {'sql': f'{sql}'}))
 
     def sqlupdate(self, sql):
-        """ Shortcut for executing write AXL SQL requests """
+        """ 
+        Shortcut for executing write AXL SQL requests 
+        ### USE WITH CAUTION, a single misconstructed SQL update statement can take down
+        a production system! ###
+        """
 
         if not sql:
             return {'fault': "missing SQL query"}  
