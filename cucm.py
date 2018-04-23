@@ -19,6 +19,7 @@ import sys
 import dicttoxml
 import xmltodict
 import urllib3
+import re
 
 import requests
 
@@ -45,7 +46,7 @@ class axl:
         self.cert_verify = cert_verify
 
 
-    def axl_cucm_envelope(self, axlnamespace, axlparams):
+    def envelope(self, axlnamespace, axlparams):
         """ SOAP envelope string builder """
         
         # mandatory SOAP envelope and namespaces
@@ -73,10 +74,13 @@ class axl:
         and return answer in dict.
         """
 
+        if not axlnamespace or not axlparams:
+            return {'fault': "missing axlnamespace or axlparams"}            
+
         url = f"https://{self.nodeip}:8443/axl/"
 
         # build the request body
-        soapenvelope=self.axl_cucm_envelope(axlnamespace,axlparams)
+        soapenvelope=self.envelope(axlnamespace,axlparams)
 
         # send the request
         try:
@@ -110,7 +114,7 @@ class controlcenter:
     Implements simplistic Serviceability Control Center POST.  Used to activate or deactivate services in VOS.
     """
 
-    def __init__(self, userid, pw, nodeip, nodename, timeout=10, cert_verify=False):
+    def __init__(self, userid, pw, nodeip, nodename, timeout=300, cert_verify=False):
         """ Initiate a new CC client instance """
         
         self.auth=requests.auth.HTTPBasicAuth(userid, pw)
@@ -118,9 +122,11 @@ class controlcenter:
         self.nodename = nodename
         self.timeout = timeout
         
-        # establish XML namespaces used later to construct and parse requests
+        # establish XML namespaces and elements used later to construct and parse requests
         self.ns0 = "http://schemas.xmlsoap.org/soap/envelope/"
         self.ns1 = "http://schemas.cisco.com/ast/soap"
+        self.element1 = "soapDoServiceDeployment"
+        self.element2 = "DeploymentServiceRequest"
         
         # suppress certificate advice
         if not cert_verify:
@@ -128,7 +134,43 @@ class controlcenter:
         self.cert_verify = cert_verify
 
 
-    def cc_cucm_envelope(self, nodename, action, services):
+    def expand_shortcuts (self, services):
+        """ expands list of predefined service shortcut names """
+
+        shortcuts = {
+                    'axl': "Cisco AXL Web Service",
+                    'bulk': "Cisco Bulk Provisioning Service",
+                    'capf': "Cisco Certificate Authority Proxy Function",
+                    'car': "Cisco CAR Web Service",
+                    'cm': "Cisco CallManager",
+                    'cti': "Cisco CTIManager",
+                    'ctl': "Cisco CTL Provider",
+                    'dirsync': "Cisco DirSync",
+                    'dna': "Cisco Dialed Number Analyzer",
+                    'dnaserver': "Cisco Dialed Number Analyzer Server",
+                    'em': "Cisco Extension Mobility",
+                    'extfunc': "Cisco Extended Functions",
+                    'ils': "Cisco Intercluster Lookup Service",
+                    'ipma': "Cisco IP Manager Assistant",
+                    'lbm': "Cisco Location Bandwidth Manager",
+                    'media': "Cisco IP Voice Media Streaming App",
+                    'selfprovision': "Self Provisioning IVR",
+                    'serviceability': "Cisco Serviceability Reporter",
+                    'snmp': "Cisco CallManager SNMP Service",
+                    'soapcdr': "Cisco SOAP - CDRonDemand Service",
+                    'taps': "Cisco TAPS Service",
+                    'tftp': "Cisco Tftp",
+                    'uxl': "Cisco UXL Web Service",
+                    'webdialer': "Cisco WebDialer Web Service"
+                    }
+        
+        # Iterate shortcut list, rewrite service list with substitutions
+        for shortcut in shortcuts:
+            services = [re.sub(f'^{shortcut}$', shortcuts[shortcut], service, flags=re.IGNORECASE)
+                        for service in services]
+        return services
+
+    def envelope(self, action, services):
         """ SOAP envelope string builder """
         
         # mandatory SOAP envelope and namespaces
@@ -139,22 +181,76 @@ class controlcenter:
         ### envelope += '<ns0:Header/>'
         
         # construct opening body
-        envelope += "<soapenv:Body><soap:soapDoServiceDeployment><soap:DeploymentServiceRequest>"
+        envelope += f"<soapenv:Body><soap:{self.element1}><soap:{self.element2}>"
 
         # add node name, not sure if CUCM validates this or not, but required
-        envelope += f"<soap:NodeName>{nodename}</soap:NodeName>"
+        envelope += f"<soap:NodeName>{self.nodename}</soap:NodeName>"
         
         # specify deployment type, Deploy to activate, UnDeploy to deactivate
         envelope += f"<soap:DeployType>{action}</soap:DeployType>"
 
-        # added services to deploy
+        # add services to deploy
+        services = self.expand_shortcuts(services) 
         envelope += "<soap:ServiceList>"
-        for each in services:
-            envelope += f"<soap:item>{each}</soap:item>"
+        for service in services:
+            envelope += f"<soap:item>{service}</soap:item>"
         envelope += "</soap:ServiceList>"
         
         # close tags
-        envelope += "</soap:DeploymentServiceRequest></soap:soapDoServiceDeployment>"
+        envelope += f"</soap:{self.element2}></soap:{self.element1}>"
         envelope += "</soapenv:Body></soapenv:Envelope>"
 
         return envelope
+
+    def clean_response(self, old_dict):
+        """ removes namespace from first dictionary part of returned response """
+
+        clean_dict = {}
+        for key, value in old_dict.items():
+            if isinstance(value, dict):
+                value = self.clean_response(value)
+            clean_dict[key.replace(f'{self.ns1}:', '')] = value
+        return clean_dict
+
+
+    def request(self, action, services):
+        """
+        Given the ControlCenter deployment action and a list of services, posts request and returns
+        answer in dict.
+        """
+
+        if action not in ('Deploy', 'UnDeploy'):
+            return {'fault': "action must be specified as either Deploy or UnDeploy"}
+        
+        if not services:
+            return {'fault': "at least one service must be passed as list"}
+        
+        url = f"https://{self.nodeip}:8443/controlcenterservice2/services/ControlCenterServices/"
+
+        # build the request body
+        soapenvelope=self.envelope(action,services)
+        
+        # send the request
+        try:
+            request = requests.post(url, data=soapenvelope, auth=self.auth, verify=self.cert_verify,
+                      timeout=self.timeout)
+            if request.status_code >= 400:
+                request.raise_for_status()
+        except:
+            return {'fault': f"Error {sys.exc_info()[:2]}"}
+
+        
+        # parse response into dict and output parts
+        request_dict = xmltodict.parse(request.text, process_namespaces=True)
+        body_dict = request_dict[f'{self.ns0}:Envelope'][f'{self.ns0}:Body'] \
+                    [f'{self.ns1}:{self.element1}Response'] \
+                    [f'{self.ns1}:{self.element1}Return']
+
+        body_dict = self.clean_response(body_dict)
+
+        # look for errors (tod: this doesn't really validate when call is succcesful but services fail to activate)
+        if body_dict['ReasonCode'] != "-1":
+            return {'fault': f"Error: '{body_dict['ReasonString']}' - \
+            check that service list is valid for node {self.nodename} (Code: {body_dict['ReasonCode']})"}
+        else:
+            return body_dict
