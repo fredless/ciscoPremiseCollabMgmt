@@ -281,10 +281,10 @@ class controlcenter:
             else:
                 if body_dict['ServiceInfoList']['item']['ReasonCode'] == "-1068":
                     failed_list = body_dict['ServiceInfoList']['item']['ServiceName']
-            if failed_list != None:
+            if failed_list != '':
                 return dict(
                     {'xmldata': soapenvelope,
                     'fault': f"Error: the following services failed to activate: {failed_list}"},
                     **body_dict)
             
-        return body_dict
+        return dict({'xmldata': soapenvelope}, **body_dict)
