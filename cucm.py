@@ -94,7 +94,7 @@ class axl:
             elif request.status_code >= 400:
                 request.raise_for_status()
         except:
-            return {'fault': f"Error {sys.exc_info()[:2]}"}
+            return {'xmldata': soapenvelope, 'fault': f"Error {sys.exc_info()[:2]}"}
         
         # parse response into dict and output parts
         request_dict = xmltodict.parse(request.text, process_namespaces=True)
@@ -104,7 +104,7 @@ class axl:
         if f'{self.ns1}:{axlnamespace}Response' in body_dict:
             return body_dict[f'{self.ns1}:{axlnamespace}Response']
         elif f'{self.ns0}:Fault' in body_dict:
-            return {'fault': body_dict[f'{self.ns0}:Fault']}
+            return {'xmldata': soapenvelope, 'fault': body_dict[f'{self.ns0}:Fault']}
         else:
             return body_dict
 
@@ -255,7 +255,7 @@ class controlcenter:
                 'fault': f"Error: service activation call failed on {self.nodename}"},
                 **body_dict
                 )
-    
+   
 
         if action == "Deploy":
             failed_list = ''
