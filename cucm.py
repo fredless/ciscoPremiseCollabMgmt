@@ -108,6 +108,13 @@ class axl:
         else:
             return body_dict
 
+    def sqlquery(self, sql):
+        """ Shortcut for execute AXL SQL requests """
+
+        if not sql:
+            return {'fault': "missing SQL query"}  
+        return (self.request('executeSQLQuery', {'sql': f'{sql}'}))
+
 
 class controlcenter:
     """
