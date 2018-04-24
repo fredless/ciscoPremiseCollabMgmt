@@ -15,6 +15,7 @@
 
 import sys
 
+# leverages SSH workers in VOS modules
 import api.vos
 
 class ssh:
