@@ -103,4 +103,3 @@ class ssh:
             if line[:2] != "--":
                 sqllist.append([line[slice].strip() for slice in slices])
         return sqllist
-

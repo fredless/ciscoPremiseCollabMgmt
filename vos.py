@@ -14,9 +14,10 @@
 # Cisco On-Premise Collab API Management Routines.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from time import time, sleep
+from time import sleep, time
 
 import paramiko
+
 
 class ssh:
     """
@@ -100,11 +101,3 @@ class ssh:
         
         # if loop ends before CLI prompt is seen, assume failure
         return {'fault': f"{self.prompt_timeout}{self.msg_timerexp}{self.msg_commandcompl}"}   
-
-
-
-
-              
-
-
-     

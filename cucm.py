@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU General Public License along with 
 # Cisco On-Premise Collab API Management Routines.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-import dicttoxml
-import xmltodict
-import urllib3
 import re
+import sys
 
+import dicttoxml
 import requests
+import urllib3
+import xmltodict
+
 
 class axl:
     """
