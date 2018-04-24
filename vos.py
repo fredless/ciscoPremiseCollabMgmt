@@ -87,9 +87,16 @@ class ssh:
             # watch for CLI prompt
             if self.prompt in output:
                 #strip first line (command) and last line (CLI prompt)
-                index1 = output.find('\n')
-                index2 = output.rfind('\n')
-                return output[index1+1:index2]
+                if output.find('\r\n\r\n') == -1:
+                    index1 = output.find('\n') + 1
+                    index2 = output.rfind('\n')
+                else:
+                    # some unity commands pad extra carriage returns
+                    index1 = output.find('\r\n\r\n') + 4
+                    index2 = output.rfind('\n') - 3
+
+                # this returns a tuple, output result in 1st position
+                return output[index1:index2]
         
         # if loop ends before CLI prompt is seen, assume failure
         return {'fault': f"{self.prompt_timeout}{self.msg_timerexp}{self.msg_commandcompl}"}   
