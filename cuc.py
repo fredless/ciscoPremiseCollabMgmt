@@ -13,13 +13,14 @@
 # You should have received a copy of the GNU General Public License along with 
 # Cisco On-Premise Collab API Management Routines.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-import re
 import csv
 import io
+import re
+import sys
 
 # leverages SSH workers in VOS modules
 import api.vos
+
 
 class ssh:
     """
@@ -43,12 +44,10 @@ class ssh:
 
         return(api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}'))
 
-    def sqlcsv(self, sql, db='unitydirdb'):
-        """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
-
-        result = api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}').splitlines()
-        # should find column breaks in first 2-3l of fixed width result
-        for line in result[:3]:
+    def sqlslicer (self, partial_result):
+        """ Builds slice map from separator row found in raw sql output """
+        
+        for line in partial_result:
                 # unity sql query column break row uses '-' char
                 if line[:1] == "-":
                     separator_found = True
@@ -74,6 +73,42 @@ class ssh:
                 offset = column_break + 2
             # add slice for the last column
             slices.append(slice(offset,len(line)))
+        return slices
+
+
+    def sqlcsv (self, sql, db='unitydirdb'):
+        """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
+
+        result = api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}').splitlines()
+        # should find column breaks in first 2-3l of fixed width result
+        slices = self.sqlslicer(result[:3])
+
+        # for line in result[:3]:
+        #         # unity sql query column break row uses '-' char
+        #         if line[:1] == "-":
+        #             separator_found = True
+        #             # ..and column headers are separated by double spaces
+        #             column_breaks = [cseparator.start() for cseparator in re.finditer('  ', line)]
+        #             break
+
+        # if not separator_found:
+        #     return {'fault': "unable to parse result, no separator line as expected"}  
+
+        # # create slice map
+        # slices = []
+        # offset = 0
+        # if not column_breaks:
+        #     # for single column results
+        #     slices.append(slice(offset,len(line)))
+        # else:
+        #     # for multiple columns
+        #     slices = []
+        #     offset = 0
+        #     for column_break in column_breaks:
+        #         slices.append(slice(offset, column_break))
+        #         offset = column_break + 2
+        #     # add slice for the last column
+        #     slices.append(slice(offset,len(line)))
         
         # parse result into csv
         result_csv = io.StringIO()
