@@ -75,7 +75,6 @@ class ssh:
             slices.append(slice(offset,len(line)))
         return slices
 
-
     def sqlcsv (self, sql, db='unitydirdb'):
         """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
 
@@ -83,37 +82,25 @@ class ssh:
         # should find column breaks in first 2-3l of fixed width result
         slices = self.sqlslicer(result[:3])
 
-        # for line in result[:3]:
-        #         # unity sql query column break row uses '-' char
-        #         if line[:1] == "-":
-        #             separator_found = True
-        #             # ..and column headers are separated by double spaces
-        #             column_breaks = [cseparator.start() for cseparator in re.finditer('  ', line)]
-        #             break
-
-        # if not separator_found:
-        #     return {'fault': "unable to parse result, no separator line as expected"}  
-
-        # # create slice map
-        # slices = []
-        # offset = 0
-        # if not column_breaks:
-        #     # for single column results
-        #     slices.append(slice(offset,len(line)))
-        # else:
-        #     # for multiple columns
-        #     slices = []
-        #     offset = 0
-        #     for column_break in column_breaks:
-        #         slices.append(slice(offset, column_break))
-        #         offset = column_break + 2
-        #     # add slice for the last column
-        #     slices.append(slice(offset,len(line)))
-        
         # parse result into csv
         result_csv = io.StringIO()
         csv_writer = csv.writer(result_csv)
         for line in result:
             if line[:2] != "--":
                 csv_writer.writerow([line[slice].strip() for slice in slices])
-        return (result_csv.getvalue())
+        return result_csv.getvalue()
+
+    def sqllist (self, sql, db='unitydirdb'):
+        """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
+
+        result = api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}').splitlines()
+        # should find column breaks in first 2-3l of fixed width result
+        slices = self.sqlslicer(result[:3])
+
+        # parse result into list
+        sqllist = []
+        for line in result:
+            if line[:2] != "--":
+                sqllist.append([line[slice].strip() for slice in slices])
+        return sqllist
+
