@@ -34,6 +34,8 @@ class ssh:
         self.prompt = prompt
         self.prompt_timeout = prompt_timeout
         self.key_verify = key_verify
+        self.shell_width = None
+        self.shell_height = None
         self.msg_timerexp = " second timer expired waiting for "
         self.msg_initprompt = "initial CLI prompt"
         self.msg_commandcompl = "command completion"
