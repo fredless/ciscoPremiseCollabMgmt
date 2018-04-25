@@ -96,7 +96,7 @@ class ssh:
 
 
     def sqllist (self, sql, db='unitydirdb'):
-        """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
+        """ Execute CLI SQL query and return results as list.  Common DB unitydirdb is default but can be overridden """
 
         result = api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}').splitlines()
         # should find column breaks in first 2-3l of fixed width result
