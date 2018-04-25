@@ -106,21 +106,16 @@ class ssh:
         return {'fault': f"{self.prompt_timeout}{self.msg_timerexp}{self.msg_commandcompl}"}   
 
 
-    def sql (self, interactive_shell, sql):
-        """ Sends single command to interactive session and returns command output as string """
-    
-        return (self.send_command(interactive_shell, f'run sql {sql}'))
-
-
-    def sqlslicer (self, partial_result):
+    def sqlslicer (self, partial_result, db):
         """ Builds slice map from separator row found in raw sql output """
-        
+                
         for line in partial_result:
-                # ccm sql query column break row uses '=' char
-                if line[:1] == "=":
+                # ccm sql query column break row uses '=' char, cuc uses '-'
+                if line[:1] == "=" or line[:1] == "-":
                     separator_found = True
-                    # ..and column headers are separated by double spaces
-                    column_breaks = [cseparator.start() for cseparator in re.finditer(' ', line)]
+                    # ..and column headers are separated by single (ccm) or double (cuc) spaces
+                    column_breaker = ' ' if db == 'ccm' else '  '
+                    column_breaks = [cseparator.start() for cseparator in re.finditer(column_breaker, line)]
                     break
 
         if not separator_found:
@@ -136,40 +131,48 @@ class ssh:
             # for multiple columns
             slices = []
             offset = 0
+            increment = 1 if db == 'ccm' else 2
             for column_break in column_breaks:
                 slices.append(slice(offset, column_break))
-                offset = column_break + 1
-            # add slice for the last column (not necessary with ccm SQL queries, sep row has trailing space)
-            # slices.append(slice(offset,len(line)))
+                offset = column_break + increment
+            # grab last column for non-ccm db queries 
+            if db != 'ccm':
+                slices.append(slice(offset,len(line)))
+        
         return slices
 
 
-    def sqlcsv (self, interactive_shell, sql):
-        """ Execute CLI SQL query and return results as CSV. """
-
-        result = self.send_command(interactive_shell, f'run sql {sql}').splitlines()
-        # should find column breaks in first 2-3l of fixed width result
-        slices = self.sqlslicer(result[:3])
-
-        # parse result into csv
-        result_csv = io.StringIO()
-        csv_writer = csv.writer(result_csv)
-        for line in result:
-            if line[:1] != "=":
-                csv_writer.writerow([line[slice].strip() for slice in slices])
-        return result_csv.getvalue()
-
-
-    def sqllist (self, interactive_shell, sql):
-        """ Execute CLI SQL query and return results as list. """
-
-        result = self.send_command(interactive_shell, f'run sql {sql}').splitlines()
-        # should find column breaks in first 2-3l of fixed width result
-        slices = self.sqlslicer(result[:3])
+    def sql (self, interactive_shell, sql, db='ccm', format='csv'):
+        """ Sends single command to interactive session and returns command output as string """
+    
+        if format not in ('raw', 'csv', 'list'):
+            return {'fault': "format needs to be one of raw, csv or list"} 
         
-        # parse result into csv
+        # can use be used for both ccm or cuc databases
+        if db != 'ccm':
+            query_cmd = f'run cuc dbquery {db}'
+        else:
+            query_cmd = 'run sql'
+
+        # run the query
+        result = self.send_command(interactive_shell, f'{query_cmd} {sql}')
+
+        if format == 'raw':
+            return result
+        
+        # parse results into list 
+        result = result.splitlines()
+        slices = self.sqlslicer(result[:3], db)
         sqllist = []
         for line in result:
-            if line[:1] != "=":
+            if line[:1] != "=" and line[:1] != "-":
                 sqllist.append([line[slice].strip() for slice in slices])
-        return sqllist
+        if format == 'list':
+            return sqllist
+
+        # convert list to csv, last possible output option
+        result_csv = io.StringIO()
+        csv_writer = csv.writer(result_csv)   
+        csv_writer.writerows(sqllist)
+
+        return result_csv.getvalue()
