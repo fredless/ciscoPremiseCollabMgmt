@@ -90,7 +90,7 @@ class ssh:
         result_csv = io.StringIO()
         csv_writer = csv.writer(result_csv)
         for line in result:
-            if line[:2] != "--":
+            if line[:1] != "-":
                 csv_writer.writerow([line[slice].strip() for slice in slices])
         return result_csv.getvalue()
 
@@ -105,7 +105,7 @@ class ssh:
         # parse result into list
         sqllist = []
         for line in result:
-            if line[:2] != "--":
+            if line[:1] != "-":
                 sqllist.append([line[slice].strip() for slice in slices])
         return sqllist
 
