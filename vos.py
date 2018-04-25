@@ -13,6 +13,9 @@
 # You should have received a copy of the GNU General Public License along with 
 # Cisco On-Premise Collab API Management Routines.  If not, see <http://www.gnu.org/licenses/>.
 
+import csv
+import io
+import re
 import sys
 from time import sleep, time
 
@@ -101,3 +104,72 @@ class ssh:
         
         # if loop ends before CLI prompt is seen, assume failure
         return {'fault': f"{self.prompt_timeout}{self.msg_timerexp}{self.msg_commandcompl}"}   
+
+
+    def sql (self, interactive_shell, sql):
+        """ Sends single command to interactive session and returns command output as string """
+    
+        return (self.send_command(interactive_shell, f'run sql {sql}'))
+
+
+    def sqlslicer (self, partial_result):
+        """ Builds slice map from separator row found in raw sql output """
+        
+        for line in partial_result:
+                # ccm sql query column break row uses '=' char
+                if line[:1] == "=":
+                    separator_found = True
+                    # ..and column headers are separated by double spaces
+                    column_breaks = [cseparator.start() for cseparator in re.finditer(' ', line)]
+                    break
+
+        if not separator_found:
+            return {'fault': "unable to parse result, no separator line as expected"} 
+
+        # create slice map
+        slices = []
+        offset = 0
+        if not column_breaks:
+            # for single column results
+            slices.append(slice(offset,len(line)))
+        else:
+            # for multiple columns
+            slices = []
+            offset = 0
+            for column_break in column_breaks:
+                slices.append(slice(offset, column_break))
+                offset = column_break + 1
+            # add slice for the last column (not necessary with ccm SQL queries, sep row has trailing space)
+            # slices.append(slice(offset,len(line)))
+        return slices
+
+
+    def sqlcsv (self, interactive_shell, sql):
+        """ Execute CLI SQL query and return results as CSV. """
+
+        result = self.send_command(interactive_shell, f'run sql {sql}').splitlines()
+        # should find column breaks in first 2-3l of fixed width result
+        slices = self.sqlslicer(result[:3])
+
+        # parse result into csv
+        result_csv = io.StringIO()
+        csv_writer = csv.writer(result_csv)
+        for line in result:
+            if line[:1] != "=":
+                csv_writer.writerow([line[slice].strip() for slice in slices])
+        return result_csv.getvalue()
+
+
+    def sqllist (self, interactive_shell, sql):
+        """ Execute CLI SQL query and return results as list. """
+
+        result = self.send_command(interactive_shell, f'run sql {sql}').splitlines()
+        # should find column breaks in first 2-3l of fixed width result
+        slices = self.sqlslicer(result[:3])
+        
+        # parse result into csv
+        sqllist = []
+        for line in result:
+            if line[:1] != "=":
+                sqllist.append([line[slice].strip() for slice in slices])
+        return sqllist
