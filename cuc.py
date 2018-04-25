@@ -27,6 +27,7 @@ class ssh:
     Implements several CLI work methods for CUC platforms.
     """
 
+
     def __init__(self, userid, pw, nodeip, prompt='admin:', prompt_timeout=60, key_verify=False):
         """ Initiate a new SSH client instance """
         
@@ -38,11 +39,13 @@ class ssh:
         self.key_verify = key_verify
         self.cucvos = api.vos.ssh(userid, pw, nodeip)
         self.cucshell = self.cucvos.connect_interactive()
-        
+
+
     def sql (self, sql, db='unitydirdb'):
         """ Execute CLI SQL query and return result. Common DB unitydirdb is default but can be overridden """
 
         return(api.vos.ssh.send_command(self.cucvos, self.cucshell, f'run cuc dbquery {db} {sql}'))
+
 
     def sqlslicer (self, partial_result):
         """ Builds slice map from separator row found in raw sql output """
@@ -75,6 +78,7 @@ class ssh:
             slices.append(slice(offset,len(line)))
         return slices
 
+
     def sqlcsv (self, sql, db='unitydirdb'):
         """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
 
@@ -90,6 +94,7 @@ class ssh:
                 csv_writer.writerow([line[slice].strip() for slice in slices])
         return result_csv.getvalue()
 
+
     def sqllist (self, sql, db='unitydirdb'):
         """ Execute CLI SQL query and return results as CSV.  Common DB unitydirdb is default but can be overridden """
 
@@ -103,3 +108,4 @@ class ssh:
             if line[:2] != "--":
                 sqllist.append([line[slice].strip() for slice in slices])
         return sqllist
+
